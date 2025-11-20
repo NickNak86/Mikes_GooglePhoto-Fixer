@@ -1,0 +1,16 @@
+# Google Photos Manager Dependencies
+# Version: 2.1
+
+# Core dependencies (required)
+Pillow>=10.0.0
+
+# Enhanced features (highly recommended)
+opencv-python>=4.8.0        # Real blur detection using computer vision
+numpy>=1.24.0               # Required by OpenCV for image processing
+
+# Optional UX enhancements
+# tkinterdnd2>=0.3.0        # Drag & drop support (uncomment to enable)
+# requests>=2.31.0          # Update checker (uncomment to enable)
+
+# Development/packaging
+# pyinstaller>=6.0.0        # For creating Windows installer

@@ -1,0 +1,52 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#BB86FC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6200EE;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="photoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#03DAC6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#018786;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)"/>
+
+  <!-- Photo frame icon -->
+  <g transform="translate(256, 256)">
+    <!-- Outer frame -->
+    <rect x="-120" y="-100" width="240" height="200" rx="16" fill="#FFFFFF" opacity="0.95"/>
+
+    <!-- Photo image representation (mountain scene) -->
+    <g opacity="0.7">
+      <!-- Sky -->
+      <rect x="-110" y="-90" width="220" height="120" fill="url(#photoGradient)"/>
+
+      <!-- Mountains -->
+      <path d="M -110 30 L -50 -40 L 10 30 Z" fill="#BB86FC" opacity="0.8"/>
+      <path d="M -20 30 L 40 -20 L 110 30 Z" fill="#6200EE" opacity="0.9"/>
+
+      <!-- Sun -->
+      <circle cx="60" cy="-50" r="20" fill="#FFA726" opacity="0.9"/>
+    </g>
+
+    <!-- Checkmark overlay (indicating quality control) -->
+    <g transform="translate(60, 60)">
+      <circle cx="0" cy="0" r="35" fill="#4CAF50" opacity="0.95"/>
+      <path d="M -12 0 L -5 10 L 15 -15" stroke="#FFFFFF" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Camera lens icon (top right) -->
+    <g transform="translate(-70, -60)">
+      <circle cx="0" cy="0" r="25" fill="#121212" opacity="0.8"/>
+      <circle cx="0" cy="0" r="18" fill="#FFFFFF" opacity="0.3"/>
+      <circle cx="0" cy="0" r="12" fill="#121212" opacity="0.6"/>
+      <circle cx="-5" cy="-5" r="4" fill="#FFFFFF" opacity="0.8"/>
+    </g>
+  </g>
+
+  <!-- Subtle shadow effect -->
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#000000" stroke-width="2" opacity="0.1"/>
+</svg>

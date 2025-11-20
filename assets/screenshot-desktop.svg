@@ -1,0 +1,192 @@
+<svg width="1024" height="768" viewBox="0 0 1024 768" xmlns="http://www.w3.org/2000/svg">
+  <!-- Window background -->
+  <rect width="1024" height="768" fill="#121212"/>
+
+  <!-- Title bar -->
+  <rect width="1024" height="40" fill="#1e1e1e"/>
+  <text x="20" y="27" font-family="Arial, sans-serif" font-size="16" fill="#FFFFFF" font-weight="600">
+    📸 Google Photos Manager v2.1
+  </text>
+
+  <!-- Window controls -->
+  <g transform="translate(960, 20)">
+    <circle cx="0" cy="0" r="6" fill="#4CAF50"/>
+    <circle cx="20" cy="0" r="6" fill="#FFA726"/>
+    <circle cx="40" cy="0" r="6" fill="#CF6679"/>
+  </g>
+
+  <!-- Main content area -->
+  <g transform="translate(0, 40)">
+    <!-- Sidebar -->
+    <rect width="250" height="728" fill="#1e1e1e"/>
+
+    <!-- Sidebar items -->
+    <g transform="translate(20, 30)">
+      <!-- Home -->
+      <rect width="210" height="50" rx="8" fill="#BB86FC" opacity="0.2"/>
+      <text x="15" y="32" font-family="Arial, sans-serif" font-size="16" fill="#BB86FC" font-weight="600">
+        🏠 Home
+      </text>
+
+      <!-- Process -->
+      <g transform="translate(0, 65)">
+        <rect width="210" height="50" rx="8" fill="#FFFFFF" opacity="0.05"/>
+        <text x="15" y="32" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+          🚀 Process
+        </text>
+      </g>
+
+      <!-- Review -->
+      <g transform="translate(0, 130)">
+        <rect width="210" height="50" rx="8" fill="#FFFFFF" opacity="0.05"/>
+        <text x="15" y="32" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+          👀 Review
+        </text>
+        <circle cx="180" cy="25" r="12" fill="#FFA726"/>
+        <text x="180" y="30" font-family="Arial, sans-serif" font-size="12" fill="#121212" text-anchor="middle" font-weight="bold">
+          23
+        </text>
+      </g>
+
+      <!-- Settings -->
+      <g transform="translate(0, 195)">
+        <rect width="210" height="50" rx="8" fill="#FFFFFF" opacity="0.05"/>
+        <text x="15" y="32" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+          ⚙️ Settings
+        </text>
+      </g>
+    </g>
+
+    <!-- Divider -->
+    <line x1="250" y1="0" x2="250" y2="728" stroke="#2d2d2d" stroke-width="1"/>
+
+    <!-- Main content -->
+    <g transform="translate(270, 30)">
+      <!-- Welcome header -->
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="32" fill="#FFFFFF" font-weight="bold">
+        Welcome to Photos Manager
+      </text>
+      <text x="0" y="35" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+        Organize and enhance your photo library with AI-powered tools
+      </text>
+
+      <!-- Stats cards -->
+      <g transform="translate(0, 70)">
+        <!-- Card 1: Total Photos -->
+        <g>
+          <rect width="220" height="120" rx="12" fill="#2d2d2d"/>
+          <text x="20" y="35" font-family="Arial, sans-serif" font-size="14" fill="#B0B0B0">
+            Total Photos
+          </text>
+          <text x="20" y="75" font-family="Arial, sans-serif" font-size="36" fill="#BB86FC" font-weight="bold">
+            5,234
+          </text>
+          <text x="20" y="100" font-family="Arial, sans-serif" font-size="12" fill="#4CAF50">
+            ↑ 12% this month
+          </text>
+        </g>
+
+        <!-- Card 2: Storage Used -->
+        <g transform="translate(240, 0)">
+          <rect width="220" height="120" rx="12" fill="#2d2d2d"/>
+          <text x="20" y="35" font-family="Arial, sans-serif" font-size="14" fill="#B0B0B0">
+            Storage Used
+          </text>
+          <text x="20" y="75" font-family="Arial, sans-serif" font-size="36" fill="#03DAC6" font-weight="bold">
+            47.3 GB
+          </text>
+          <text x="20" y="100" font-family="Arial, sans-serif" font-size="12" fill="#B0B0B0">
+            of 100 GB available
+          </text>
+        </g>
+
+        <!-- Card 3: Needs Review -->
+        <g transform="translate(480, 0)">
+          <rect width="220" height="120" rx="12" fill="#2d2d2d"/>
+          <text x="20" y="35" font-family="Arial, sans-serif" font-size="14" fill="#B0B0B0">
+            Needs Review
+          </text>
+          <text x="20" y="75" font-family="Arial, sans-serif" font-size="36" fill="#FFA726" font-weight="bold">
+            23
+          </text>
+          <text x="20" y="100" font-family="Arial, sans-serif" font-size="12" fill="#FFA726">
+            ⚠️ Action required
+          </text>
+        </g>
+      </g>
+
+      <!-- Quick Actions -->
+      <g transform="translate(0, 220)">
+        <text x="0" y="0" font-family="Arial, sans-serif" font-size="20" fill="#FFFFFF" font-weight="600">
+          Quick Actions
+        </text>
+
+        <!-- Action buttons -->
+        <g transform="translate(0, 30)">
+          <!-- Process New Takeout -->
+          <rect width="330" height="100" rx="12" fill="#BB86FC" opacity="0.15"/>
+          <rect x="2" y="2" width="326" height="96" rx="10" fill="transparent" stroke="#BB86FC" stroke-width="2"/>
+          <text x="20" y="40" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF" font-weight="600">
+            🚀 Process New Takeout
+          </text>
+          <text x="20" y="65" font-family="Arial, sans-serif" font-size="14" fill="#B0B0B0">
+            Extract and organize new photos
+          </text>
+
+          <!-- Review Flagged Photos -->
+          <g transform="translate(350, 0)">
+            <rect width="330" height="100" rx="12" fill="#FFA726" opacity="0.15"/>
+            <rect x="2" y="2" width="326" height="96" rx="10" fill="transparent" stroke="#FFA726" stroke-width="2"/>
+            <text x="20" y="40" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF" font-weight="600">
+              👀 Review 23 Photos
+            </text>
+            <text x="20" y="65" font-family="Arial, sans-serif" font-size="14" fill="#B0B0B0">
+              Duplicates, blur, and burst photos
+            </text>
+          </g>
+        </g>
+
+        <!-- Recent Activity -->
+        <g transform="translate(0, 160)">
+          <text x="0" y="0" font-family="Arial, sans-serif" font-size="20" fill="#FFFFFF" font-weight="600">
+            Recent Activity
+          </text>
+
+          <!-- Activity items -->
+          <g transform="translate(0, 30)">
+            <!-- Item 1 -->
+            <rect width="700" height="60" rx="8" fill="#1e1e1e"/>
+            <text x="20" y="25" font-family="Arial, sans-serif" font-size="14" fill="#FFFFFF">
+              ✅ Processed 1,234 photos from Google Takeout
+            </text>
+            <text x="20" y="45" font-family="Arial, sans-serif" font-size="12" fill="#B0B0B0">
+              2 hours ago
+            </text>
+
+            <!-- Item 2 -->
+            <g transform="translate(0, 70)">
+              <rect width="700" height="60" rx="8" fill="#1e1e1e"/>
+              <text x="20" y="25" font-family="Arial, sans-serif" font-size="14" fill="#FFFFFF">
+                🔍 Found 47 duplicate photos
+              </text>
+              <text x="20" y="45" font-family="Arial, sans-serif" font-size="12" fill="#B0B0B0">
+                Yesterday
+              </text>
+            </g>
+
+            <!-- Item 3 -->
+            <g transform="translate(0, 140)">
+              <rect width="700" height="60" rx="8" fill="#1e1e1e"/>
+              <text x="20" y="25" font-family="Arial, sans-serif" font-size="14" fill="#FFFFFF">
+                📊 Organized 892 photos by date
+              </text>
+              <text x="20" y="45" font-family="Arial, sans-serif" font-size="12" fill="#B0B0B0">
+                2 days ago
+              </text>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,134 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1e2e"/>
+      <stop offset="100%" style="stop-color:#0a0a0f"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#BB86FC"/>
+      <stop offset="100%" style="stop-color:#6200EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <!-- Decorative elements -->
+  <circle cx="100" cy="100" r="150" fill="#BB86FC" opacity="0.1"/>
+  <circle cx="1100" cy="530" r="200" fill="#03DAC6" opacity="0.1"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.05">
+    <line x1="0" y1="150" x2="1200" y2="150" stroke="#ffffff" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1200" y2="300" stroke="#ffffff" stroke-width="1"/>
+    <line x1="0" y1="450" x2="1200" y2="450" stroke="#ffffff" stroke-width="1"/>
+    <line x1="300" y1="0" x2="300" y2="630" stroke="#ffffff" stroke-width="1"/>
+    <line x1="600" y1="0" x2="600" y2="630" stroke="#ffffff" stroke-width="1"/>
+    <line x1="900" y1="0" x2="900" y2="630" stroke="#ffffff" stroke-width="1"/>
+  </g>
+
+  <!-- Logo/Icon -->
+  <g transform="translate(80, 100)">
+    <circle cx="0" cy="0" r="60" fill="url(#accentGradient)"/>
+    <!-- Camera icon -->
+    <path d="M -25,-15 L -15,-25 L 15,-25 L 25,-15 L 30,-15 C 35,-15 35,-10 35,-10 L 35,20 C 35,25 30,25 30,25 L -30,25 C -35,25 -35,20 -35,20 L -35,-10 C -35,-15 -30,-15 -30,-15 Z"
+          fill="#121212" opacity="0.3"/>
+    <!-- Lens -->
+    <circle cx="0" cy="5" r="15" fill="none" stroke="#121212" stroke-width="3" opacity="0.3"/>
+    <!-- Checkmark overlay -->
+    <path d="M 15,-20 L 10,-15 L 5,-10" fill="none" stroke="#4CAF50" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <!-- Title -->
+  <text x="200" y="140" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#FFFFFF">
+    Google Photos Manager
+  </text>
+
+  <!-- Subtitle -->
+  <text x="200" y="200" font-family="Arial, sans-serif" font-size="32" fill="#B0B0B0">
+    Intelligent Photo Organization & Duplicate Management
+  </text>
+
+  <!-- Feature tags -->
+  <g transform="translate(200, 260)">
+    <!-- Tag 1 -->
+    <rect x="0" y="0" width="200" height="50" rx="25" fill="#BB86FC" opacity="0.2"/>
+    <text x="100" y="32" font-family="Arial, sans-serif" font-size="18" fill="#BB86FC" text-anchor="middle">
+      📸 Duplicate Detection
+    </text>
+
+    <!-- Tag 2 -->
+    <rect x="220" y="0" width="180" height="50" rx="25" fill="#03DAC6" opacity="0.2"/>
+    <text x="310" y="32" font-family="Arial, sans-serif" font-size="18" fill="#03DAC6" text-anchor="middle">
+      🔍 Blur Detection
+    </text>
+
+    <!-- Tag 3 -->
+    <rect x="420" y="0" width="160" height="50" rx="25" fill="#4CAF50" opacity="0.2"/>
+    <text x="500" y="32" font-family="Arial, sans-serif" font-size="18" fill="#4CAF50" text-anchor="middle">
+      📱 Cross-Platform
+    </text>
+
+    <!-- Tag 4 -->
+    <rect x="600" y="0" width="140" height="50" rx="25" fill="#FFA726" opacity="0.2"/>
+    <text x="670" y="32" font-family="Arial, sans-serif" font-size="18" fill="#FFA726" text-anchor="middle">
+      ⚡ Fast Processing
+    </text>
+  </g>
+
+  <!-- Key stats -->
+  <g transform="translate(200, 370)">
+    <!-- Stat 1 -->
+    <g>
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#BB86FC">
+        v2.1.0
+      </text>
+      <text x="0" y="35" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+        Latest Version
+      </text>
+    </g>
+
+    <!-- Stat 2 -->
+    <g transform="translate(200, 0)">
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#03DAC6">
+        Python 3.9+
+      </text>
+      <text x="0" y="35" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+        Powered by Python
+      </text>
+    </g>
+
+    <!-- Stat 3 -->
+    <g transform="translate(500, 0)">
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#4CAF50">
+        MIT License
+      </text>
+      <text x="0" y="35" font-family="Arial, sans-serif" font-size="16" fill="#B0B0B0">
+        Free & Open Source
+      </text>
+    </g>
+  </g>
+
+  <!-- Bottom bar -->
+  <g transform="translate(0, 550)">
+    <rect width="1200" height="80" fill="#000000" opacity="0.5"/>
+
+    <!-- GitHub info -->
+    <g transform="translate(80, 40)">
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" fill="#FFFFFF">
+        ⭐ Star on GitHub
+      </text>
+      <text x="200" y="0" font-family="Arial, sans-serif" font-size="20" fill="#B0B0B0">
+        NickNak86/Mikes_GooglePhoto-Fixer
+      </text>
+    </g>
+
+    <!-- Features -->
+    <g transform="translate(700, 40)">
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="18" fill="#B0B0B0">
+        Desktop • Mobile • Cloud-Ready • Non-Destructive
+      </text>
+    </g>
+  </g>
+</svg>

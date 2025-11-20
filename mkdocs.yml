@@ -1,0 +1,182 @@
+site_name: Google Photos Manager Documentation
+site_description: Intelligent photo organization and duplicate management for Google Photos Takeout archives
+site_author: Google Photos Manager Contributors
+site_url: https://nicknakr86.github.io/Mikes_GooglePhoto-Fixer
+
+# Repository
+repo_name: NickNak86/Mikes_GooglePhoto-Fixer
+repo_url: https://github.com/NickNak86/Mikes_GooglePhoto-Fixer
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024 Google Photos Manager Contributors
+
+# Configuration
+theme:
+  name: material
+  language: en
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/camera
+
+# Plugins
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            docstring_style: google
+            merge_init_into_class: true
+            show_if_no_docstring: false
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Configuration: getting-started/configuration.md
+  - User Guide:
+      - Desktop Application: user-guide/desktop-app.md
+      - Mobile Application: user-guide/mobile-app.md
+      - Processing Photos: user-guide/processing.md
+      - Review Interface: user-guide/review.md
+      - Best Practices: user-guide/best-practices.md
+  - Mobile Development:
+      - Architecture: mobile/architecture.md
+      - Building APK: mobile/building.md
+      - Troubleshooting: mobile/troubleshooting.md
+  - API Reference:
+      - PhotoProcessorEnhanced: api/photo-processor.md
+      - Mobile Utils: api/mobile-utils.md
+      - Review Interface: api/review-interface.md
+  - Tutorials:
+      - First Time Setup: tutorials/first-time-setup.md
+      - Processing Takeout: tutorials/processing-takeout.md
+      - Mobile App Usage: tutorials/mobile-usage.md
+      - Advanced Features: tutorials/advanced.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Development Setup: development/setup.md
+      - Testing: development/testing.md
+      - Code Style: development/code-style.md
+      - Architecture: development/architecture.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+
+# Extra
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/NickNak86/Mikes_GooglePhoto-Fixer
+    - icon: fontawesome/solid/bug
+      link: https://github.com/NickNak86/Mikes_GooglePhoto-Fixer/issues
+
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/thumb-up-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/thumb-down-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve by
+            <a href="https://github.com/NickNak86/Mikes_GooglePhoto-Fixer/issues/new" target="_blank" rel="noopener">filing an issue</a>.
+
+# Extra CSS
+extra_css:
+  - stylesheets/extra.css
+
+# Extra JavaScript
+extra_javascript:
+  - javascripts/extra.js

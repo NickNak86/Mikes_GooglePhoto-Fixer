@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Development environment for desktop app
+  desktop-dev:
+    image: python:3.11-slim
+    container_name: photo-manager-desktop-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./test_data:/test_data
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=${DISPLAY:-:0}
+    networks:
+      - photo-manager-net
+    command: bash -c "pip install -r requirements.txt && pip install -e '.[dev]' && bash"
+    stdin_open: true
+    tty: true
+
+  # Testing environment
+  test:
+    image: python:3.11-slim
+    container_name: photo-manager-test
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - photo-manager-net
+    command: |
+      bash -c "
+        pip install -r requirements.txt &&
+        pip install -e '.[dev]' &&
+        pytest tests/ -v --cov=. --cov-report=html --cov-report=term
+      "
+
+  # Documentation builder
+  docs:
+    image: python:3.11-slim
+    container_name: photo-manager-docs
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - photo-manager-net
+    command: |
+      bash -c "
+        pip install mkdocs mkdocs-material mkdocstrings[python] &&
+        mkdocs serve -a 0.0.0.0:8000
+      "
+
+  # Linting and code quality
+  lint:
+    image: python:3.11-slim
+    container_name: photo-manager-lint
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - photo-manager-net
+    command: |
+      bash -c "
+        pip install black isort flake8 mypy bandit &&
+        echo '=== Running Black ===' &&
+        black --check --diff . &&
+        echo '=== Running isort ===' &&
+        isort --check-only --diff . &&
+        echo '=== Running Flake8 ===' &&
+        flake8 . &&
+        echo '=== Running mypy ===' &&
+        mypy . --ignore-missing-imports &&
+        echo '=== Running Bandit ===' &&
+        bandit -r . -f screen
+      "
+
+  # Mobile build environment (Buildozer)
+  mobile-build:
+    image: kivy/buildozer:latest
+    container_name: photo-manager-mobile-build
+    working_dir: /app
+    volumes:
+      - .:/app
+      - buildozer-cache:/root/.buildozer
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - photo-manager-net
+    privileged: true
+    command: |
+      bash -c "
+        echo 'Building Android APK...' &&
+        buildozer -v android debug
+      "
+
+  # Performance profiling
+  profiler:
+    image: python:3.11-slim
+    container_name: photo-manager-profiler
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./profiling_results:/profiling_results
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - photo-manager-net
+    command: |
+      bash -c "
+        pip install -r requirements.txt &&
+        pip install memory_profiler py-spy &&
+        python -m memory_profiler PhotoProcessorEnhanced.py
+      "
+
+networks:
+  photo-manager-net:
+    driver: bridge
+
+volumes:
+  buildozer-cache:
+    driver: local
