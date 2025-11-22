@@ -101,7 +101,7 @@ jobs:
         path: site/
 
     - name: Check links
-      uses: lycheeverse/lychee-action@v1
+      uses: lycheeverse/lychee-action@v2.0.2
       with:
         args: --verbose --no-progress 'site/**/*.html'
         fail: false  # Don't fail the workflow on broken links
