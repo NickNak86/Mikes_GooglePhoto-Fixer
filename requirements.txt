@@ -14,3 +14,4 @@ numpy>=1.24.0               # Required by OpenCV for image processing
 
 # Development/packaging
 # pyinstaller>=6.0.0        # For creating Windows installer
+PyQt6
