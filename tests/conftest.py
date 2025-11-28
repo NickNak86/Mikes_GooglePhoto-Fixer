@@ -22,9 +22,16 @@ def temp_dir() -> Generator[Path, None, None]:
 
 @pytest.fixture
 def sample_image(temp_dir: Path) -> Path:
-    """Create a sample test image."""
+    """Create a sample test image with sufficient detail to avoid blur detection."""
+    from PIL import ImageDraw
     image_path = temp_dir / "test_image.jpg"
-    img = Image.new('RGB', (800, 600), color='red')
+    img = Image.new('RGB', (800, 600), color='white')
+    draw = ImageDraw.Draw(img)
+    # Add detailed pattern to ensure high variance
+    for i in range(0, 800, 5):
+        draw.line([(i, 0), (i, 600)], fill='black', width=1)
+    for i in range(0, 600, 5):
+        draw.line([(0, i), (800, i)], fill='black', width=1)
     img.save(image_path, 'JPEG', quality=95)
     return image_path
 
@@ -32,10 +39,14 @@ def sample_image(temp_dir: Path) -> Path:
 @pytest.fixture
 def sample_images(temp_dir: Path) -> list[Path]:
     """Create multiple sample test images with different properties."""
+    from PIL import ImageDraw
     images = []
 
-    # High quality image
-    img1 = Image.new('RGB', (1920, 1080), color='blue')
+    # High quality image with detail
+    img1 = Image.new('RGB', (1920, 1080), color='white')
+    draw1 = ImageDraw.Draw(img1)
+    for i in range(0, 1920, 10):
+        draw1.line([(i, 0), (i, 1080)], fill='blue', width=1)
     path1 = temp_dir / "high_quality.jpg"
     img1.save(path1, 'JPEG', quality=95)
     images.append(path1)

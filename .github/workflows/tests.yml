@@ -62,7 +62,7 @@ jobs:
 
     - name: Upload coverage report
       if: matrix.python-version == '3.11'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: |
@@ -216,7 +216,7 @@ jobs:
 
     steps:
     - name: Download coverage report
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: coverage-report
       continue-on-error: true

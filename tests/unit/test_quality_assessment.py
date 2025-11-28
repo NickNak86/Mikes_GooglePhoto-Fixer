@@ -105,8 +105,8 @@ class TestBlurDetection:
 
         is_blurry, score = calculate_blur_score(gray_path)
         # Should not raise error
-        assert isinstance(score, float)
-        assert isinstance(is_blurry, bool)
+        assert isinstance(score, (float, np.floating))
+        assert isinstance(is_blurry, (bool, np.bool_))
 
     def test_blur_detection_invalid_file(self, temp_dir):
         """Test blur detection with invalid image file."""
@@ -160,7 +160,7 @@ class TestSizeChecking:
         is_too_small, size = check_image_size(sample_image, min_size_mb=0.01)
 
         # Sample images should be larger than 0.01 MB
-        assert not is_too_small
+        assert not bool(is_too_small)
         assert size > 0.01
 
     def test_small_file_detected(self, temp_dir):
@@ -228,8 +228,8 @@ class TestQualityAssessmentCombined:
         is_too_small, file_size = check_image_size(sample_image, min_size_mb=0.01)
 
         # High quality image should pass both checks
-        assert not is_blurry
-        assert not is_too_small
+        assert not bool(is_blurry)
+        assert not bool(is_too_small)
         assert blur_score > 100.0
         assert file_size > 0.01
 

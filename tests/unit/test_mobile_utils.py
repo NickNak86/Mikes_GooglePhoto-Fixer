@@ -154,11 +154,7 @@ class TestStorageHelper:
 
     def test_count_photos_in_directory(self, temp_dir, sample_images):
         """Test counting photos in directory."""
-        # Copy sample images to temp_dir
-        for img in sample_images:
-            import shutil
-            shutil.copy(img, temp_dir)
-
+        # sample_images are already in temp_dir, no need to copy
         helper = StorageHelper(base_path=temp_dir)
         count = helper.count_photos_in_directory(temp_dir)
         assert count == len(sample_images)
@@ -171,11 +167,7 @@ class TestStorageHelper:
 
     def test_get_folder_size(self, temp_dir, sample_images):
         """Test getting folder size."""
-        # Copy sample images to temp_dir
-        for img in sample_images:
-            import shutil
-            shutil.copy(img, temp_dir)
-
+        # sample_images are already in temp_dir, no need to copy
         helper = StorageHelper(base_path=temp_dir)
         size = helper.get_folder_size(temp_dir)
         assert size > 0
@@ -184,16 +176,16 @@ class TestStorageHelper:
         """Test human-readable size formatting."""
         helper = StorageHelper()
 
-        assert helper.format_size(500) == "500.00 B"
-        assert helper.format_size(1024) == "1.00 KB"
-        assert helper.format_size(1024 * 1024) == "1.00 MB"
-        assert helper.format_size(1024 * 1024 * 1024) == "1.00 GB"
-        assert helper.format_size(1024 * 1024 * 1024 * 1024) == "1.00 TB"
+        assert helper.format_size(500) == "500.0 B"
+        assert helper.format_size(1024) == "1.0 KB"
+        assert helper.format_size(1024 * 1024) == "1.0 MB"
+        assert helper.format_size(1024 * 1024 * 1024) == "1.0 GB"
+        assert helper.format_size(1024 * 1024 * 1024 * 1024) == "1.0 TB"
 
     def test_format_size_zero(self):
         """Test formatting zero size."""
         helper = StorageHelper()
-        assert helper.format_size(0) == "0.00 B"
+        assert helper.format_size(0) == "0.0 B"
 
     def test_get_review_categories(self, temp_dir):
         """Test getting review category folders."""

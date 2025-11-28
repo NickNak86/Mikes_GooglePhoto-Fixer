@@ -31,7 +31,52 @@ class MobilePlatform:
 
     @staticmethod
     def request_storage_permissions():
-        """Request storage permissions on Android"""
+        """Request storage permissions on Android (legacy method for backwards compatibility)"""
+        return MobilePlatform.request_permissions()
+
+    @staticmethod
+    def check_storage_permissions() -> bool:
+        """Check if storage permissions are granted (legacy method for backwards compatibility)"""
+        return MobilePlatform.check_permissions()
+
+    @staticmethod
+    def get_storage_path() -> Path:
+        """Get platform-specific storage path"""
+        if ANDROID:
+            # Android external storage
+            try:
+                Environment = autoclass('android.os.Environment')
+                storage = Environment.getExternalStorageDirectory().getPath()
+                return Path(storage) / "PhotoLibrary"
+            except:
+                return Path("/sdcard/PhotoLibrary")
+        else:
+            # Desktop or other platforms
+            return Path.home() / "PhotoLibrary"
+
+    @staticmethod
+    def get_config_dir() -> Path:
+        """Get platform-specific config directory"""
+        if ANDROID:
+            # Android app data directory
+            try:
+                from android import mActivity
+                context = mActivity.getApplicationContext()
+                files_dir = context.getFilesDir().getPath()
+                return Path(files_dir)
+            except:
+                return Path("/sdcard/PhotoLibrary")
+        else:
+            return Path.home() / ".photomanager"
+
+    @staticmethod
+    def get_config_path() -> Path:
+        """Get platform-specific config path (legacy method for backwards compatibility)"""
+        return MobilePlatform.get_config_dir()
+
+    @staticmethod
+    def request_permissions():
+        """Request necessary permissions"""
         if not ANDROID:
             return True
 
@@ -49,7 +94,7 @@ class MobilePlatform:
             return False
 
     @staticmethod
-    def check_storage_permissions() -> bool:
+    def check_permissions() -> bool:
         """Check if storage permissions are granted"""
         if not ANDROID:
             return True
@@ -61,45 +106,22 @@ class MobilePlatform:
         except:
             return False
 
-    @staticmethod
-    def get_storage_path() -> Path:
-        """Get platform-specific storage path"""
-        if ANDROID:
-            # Android external storage
-            try:
-                Environment = autoclass('android.os.Environment')
-                storage = Environment.getExternalStorageDirectory().getPath()
-                return Path(storage) / "FamilyArchive"
-            except:
-                return Path("/sdcard/FamilyArchive")
-        else:
-            # Desktop or other platforms
-            return Path.home() / "FamilyArchive"
-
-    @staticmethod
-    def get_config_path() -> Path:
-        """Get platform-specific config path"""
-        if ANDROID:
-            # Android app data directory
-            try:
-                from android import mActivity
-                context = mActivity.getApplicationContext()
-                files_dir = context.getFilesDir().getPath()
-                return Path(files_dir)
-            except:
-                return Path("/sdcard/FamilyArchive")
-        else:
-            return Path(__file__).parent
-
 
 class ConfigManager:
     """Manage app configuration"""
 
-    def __init__(self):
-        self.config_file = MobilePlatform.get_config_path() / "config.json"
-        self.config = self.load()
+    def __init__(self, config_file: Path = None):
+        if config_file is None:
+            self.config_file = MobilePlatform.get_config_dir() / "config.json"
+        else:
+            self.config_file = Path(config_file)
+        self.config = self.load_config()
 
     def load(self) -> dict:
+        """Load configuration (legacy method)"""
+        return self.load_config()
+
+    def load_config(self) -> dict:
         """Load configuration"""
         if self.config_file.exists():
             try:
@@ -111,6 +133,9 @@ class ConfigManager:
         # Default configuration
         return {
             'base_path': str(MobilePlatform.get_storage_path()),
+            'worker_threads': 2 if MobilePlatform.is_android() else 4,
+            'blur_threshold': 100.0,
+            'size_threshold': 0.5,
             'max_workers': 2 if MobilePlatform.is_android() else 4,
             'auto_backup': True,
             'backup_path': '',
@@ -119,7 +144,13 @@ class ConfigManager:
         }
 
     def save(self):
+        """Save configuration (legacy method)"""
+        return self.save_config(self.config)
+
+    def save_config(self, config: dict = None):
         """Save configuration"""
+        if config is not None:
+            self.config = config
         try:
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.config_file, 'w') as f:
@@ -142,9 +173,21 @@ class ConfigManager:
 class StorageHelper:
     """Helper for file and folder management"""
 
-    @staticmethod
-    def get_review_folders(base_path: Path) -> dict:
+    def __init__(self, base_path: Path = None):
+        """Initialize StorageHelper with optional base path"""
+        if base_path is None:
+            self.base_path = MobilePlatform.get_storage_path()
+        else:
+            self.base_path = Path(base_path)
+
+    def get_review_folder_path(self) -> Path:
+        """Get the main review folder path"""
+        return self.base_path / "Review"
+
+    def get_review_folders(self, base_path: Path = None) -> dict:
         """Get review folder paths"""
+        if base_path is None:
+            base_path = self.base_path
         review_dir = base_path / "Pics Waiting for Approval"
         return {
             'too_small': review_dir / "NEEDS ATTENTION - Too Small",
@@ -153,8 +196,17 @@ class StorageHelper:
             'duplicates': review_dir / "NEEDS ATTENTION - Duplicates"
         }
 
-    @staticmethod
-    def get_photo_count(path: Path) -> int:
+    def get_review_categories(self) -> list[str]:
+        """Get list of review category folder names"""
+        review_path = self.get_review_folder_path()
+        categories = []
+        if review_path.exists():
+            for item in review_path.iterdir():
+                if item.is_dir():
+                    categories.append(item.name)
+        return categories
+
+    def count_photos_in_directory(self, path: Path) -> int:
         """Count photos in directory"""
         if not path.exists():
             return 0
@@ -172,7 +224,12 @@ class StorageHelper:
         return count
 
     @staticmethod
-    def get_folder_size(path: Path) -> int:
+    def get_photo_count(path: Path) -> int:
+        """Count photos in directory (static method for backwards compatibility)"""
+        helper = StorageHelper()
+        return helper.count_photos_in_directory(path)
+
+    def get_folder_size(self, path: Path) -> int:
         """Get total size of folder in bytes"""
         if not path.exists():
             return 0
@@ -187,8 +244,7 @@ class StorageHelper:
 
         return total
 
-    @staticmethod
-    def format_size(size_bytes: int) -> str:
+    def format_size(self, size_bytes: int) -> str:
         """Format bytes to human readable"""
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
             if size_bytes < 1024.0:
