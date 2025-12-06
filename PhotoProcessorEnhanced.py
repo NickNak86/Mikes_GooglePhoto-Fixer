@@ -124,16 +124,27 @@ class PhotoProcessorEnhanced:
     BLUR_THRESHOLD = 100.0  # Laplacian variance threshold
     BURST_TIME_THRESHOLD = 10
 
+
     def __init__(self, base_path: str, exiftool_path: str = None, max_workers: int = 4):
         """
-        Initialize enhanced processor
+        Initialize enhanced processor with input validation and health check
 
         Args:
             base_path: Root directory
             exiftool_path: Path to exiftool executable
             max_workers: Number of threads for parallel processing
         """
+        # Input validation
+        if not base_path or not isinstance(base_path, str):
+            raise ValueError("base_path must be a non-empty string")
         self.base_path = Path(base_path)
+        if not self.base_path.exists():
+            raise FileNotFoundError(f"Base path does not exist: {self.base_path}")
+        if not self.base_path.is_dir():
+            raise NotADirectoryError(f"Base path is not a directory: {self.base_path}")
+        if not isinstance(max_workers, int) or max_workers < 1:
+            raise ValueError("max_workers must be a positive integer")
+
         self.exiftool_path = exiftool_path or self._find_exiftool()
         self.max_workers = max_workers
 
@@ -174,6 +185,64 @@ class PhotoProcessorEnhanced:
 
         # Logging
         self.setup_logging()
+
+    def self_test(self) -> Dict[str, str]:
+        """
+        Health/self-healing check for required directories, dependencies, and log writability.
+        Returns a dict of health check results.
+        """
+        results = {}
+        # Check base path
+        if not self.base_path.exists():
+            results['base_path'] = 'FAIL: Base path does not exist.'
+        elif not self.base_path.is_dir():
+            results['base_path'] = 'FAIL: Base path is not a directory.'
+        else:
+            results['base_path'] = 'OK'
+
+        # Check log directory
+        log_dir = self.base_path / "logs"
+        try:
+            log_dir.mkdir(exist_ok=True)
+            test_file = log_dir / "health_test.log"
+            with open(test_file, "w") as f:
+                f.write("health test")
+            test_file.unlink()
+            results['log_dir'] = 'OK'
+        except Exception as e:
+            results['log_dir'] = f'FAIL: Log dir not writable: {e}'
+
+        # Check review directories
+        for key, dir_path in self.review_dirs.items():
+            try:
+                dir_path.mkdir(parents=True, exist_ok=True)
+                results[f'review_dir_{key}'] = 'OK'
+            except Exception as e:
+                results[f'review_dir_{key}'] = f'FAIL: {e}'
+
+        # Check OpenCV
+        if OPENCV_AVAILABLE:
+            results['opencv'] = 'OK'
+        else:
+            results['opencv'] = 'FAIL: OpenCV not available.'
+
+        # Check exiftool
+        if self.exiftool_path and (os.path.exists(self.exiftool_path) or shutil.which(self.exiftool_path)):
+            results['exiftool'] = 'OK'
+        else:
+            results['exiftool'] = 'FAIL: exiftool not found.'
+
+        # Log health check results
+        for k, v in results.items():
+            self.logger.info(f"Health check: {k}: {v}")
+        return results
+
+    def notify_critical_failure(self, message: str):
+        """
+        Notification hook for critical failures (placeholder).
+        """
+        self.logger.error(f"CRITICAL FAILURE: {message}")
+        # TODO: Integrate with email, desktop notification, etc.
 
     def setup_logging(self):
         """Setup logging to file"""
@@ -401,6 +470,18 @@ class PhotoProcessorEnhanced:
         # Add issues to main list
         self.issues.extend(issues_found)
 
+    def _calculate_hash(self, file_path: Path) -> str:
+        """Calculate SHA256 hash of a file"""
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(8192), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            self.logger.error(f"Error calculating hash for {file_path}: {e}")
+            return ""
+    
     def _select_best_photo(self, photos: List[PhotoFile]) -> PhotoFile:
         """Select the best photo with blur score consideration"""
         for photo in photos:
@@ -504,5 +585,467 @@ class PhotoProcessorEnhanced:
         for dir_path in self.review_dirs.values():
             dir_path.mkdir(parents=True, exist_ok=True)
 
-    # ... (Other methods from original PhotoProcessor should be included here)
-    # For the complete implementation, copy all methods from PhotoProcessor.py
+    def extract_takeouts(self) -> int:
+        """Extract Google Takeout zip files if any exist"""
+        extracted_count = 0
+
+        if not self.takeout_dir.exists():
+            return 0
+
+        # Look for zip files in the takeout directory
+        zip_files = list(self.takeout_dir.glob("*.zip"))
+
+        for zip_path in zip_files:
+            try:
+                self._update_progress(f"Extracting {zip_path.name}")
+                self.logger.info(f"Extracting takeout archive: {zip_path}")
+
+                # Create extraction directory
+                extract_dir = self.takeout_dir / zip_path.stem
+                extract_dir.mkdir(exist_ok=True)
+
+                # Extract the zip file
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+
+                extracted_count += 1
+                self.logger.info(f"Successfully extracted {zip_path.name}")
+
+                # Optionally move the original zip to avoid re-extracting
+                archive_dir = self.takeout_dir / "archives"
+                archive_dir.mkdir(exist_ok=True)
+                shutil.move(str(zip_path), str(archive_dir / zip_path.name))
+
+            except Exception as e:
+                self.logger.error(f"Failed to extract {zip_path.name}: {e}")
+                self.issues.append(f"Failed to extract {zip_path.name}: {str(e)}")
+
+        return extracted_count
+
+
+    def scan_files(self):
+        """
+        Scan all relevant directories for photo/video files and associated JSON metadata.
+        - Recursively walk the Photos & Videos and GoogleTakeout directories.
+        - For each file, create a PhotoFile object, link JSON if present, and append to self.all_files.
+        - Update progress and handle cancellation.
+        """
+        self._update_progress("Scanning for media files")
+        self.all_files = []
+        
+        # Scan both source directories
+        scan_dirs = []
+        if self.photos_videos_dir.exists():
+            scan_dirs.append(self.photos_videos_dir)
+        if self.takeout_dir.exists():
+            scan_dirs.append(self.takeout_dir)
+        
+        for scan_dir in scan_dirs:
+            if self.is_cancelled():
+                break
+                
+            self.logger.info(f"Scanning directory: {scan_dir}")
+            
+            for root, dirs, files in os.walk(scan_dir):
+                if self.is_cancelled():
+                    break
+                    
+                for filename in files:
+                    if self.is_cancelled():
+                        break
+                        
+                    file_path = Path(root) / filename
+                    file_ext = file_path.suffix.lower()
+                    
+                    # Check if it's a media file
+                    if file_ext in self.IMAGE_EXTENSIONS or file_ext in self.VIDEO_EXTENSIONS:
+                        photo = PhotoFile(path=file_path)
+                        
+                        # Check for associated JSON metadata file
+                        json_path = file_path.parent / f"{file_path.name}.json"
+                        if json_path.exists():
+                            photo.has_json = True
+                            photo.json_path = json_path
+                        
+                        self.all_files.append(photo)
+                        self._update_progress(files_delta=1)
+        
+        self.logger.info(f"Found {len(self.all_files)} media files")
+        self.stats['total_processed'] = len(self.all_files)
+
+    def restore_metadata(self):
+        """
+        Restore/correct file timestamps and metadata using JSON sidecars and exiftool.
+        - For each PhotoFile with a JSON, parse date fields and update file timestamps.
+        - Use exiftool to write correct EXIF data if available.
+        - Log any failures or skipped files.
+        """
+        self._update_progress("Restoring metadata from JSON files")
+        
+        files_with_json = [f for f in self.all_files if f.has_json and f.json_path]
+        self.progress.total_files = len(files_with_json)
+        self.progress.files_processed = 0
+        
+        for photo in files_with_json:
+            if self.is_cancelled():
+                break
+                
+            try:
+                # Read JSON metadata
+                with open(photo.json_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                
+                # Extract date taken from JSON
+                date_taken = None
+                if 'photoTakenTime' in metadata:
+                    timestamp = metadata['photoTakenTime'].get('timestamp')
+                    if timestamp:
+                        date_taken = datetime.fromtimestamp(int(timestamp))
+                elif 'creationTime' in metadata:
+                    timestamp = metadata['creationTime'].get('timestamp')
+                    if timestamp:
+                        date_taken = datetime.fromtimestamp(int(timestamp))
+                
+                if date_taken:
+                    photo.date_taken = date_taken
+                    
+                    # Update file timestamps
+                    timestamp = date_taken.timestamp()
+                    os.utime(photo.path, (timestamp, timestamp))
+                    
+                    # Use exiftool to write EXIF data if available
+                    if self.exiftool_path:
+                        try:
+                            date_str = date_taken.strftime('%Y:%m:%d %H:%M:%S')
+                            subprocess.run(
+                                [self.exiftool_path, f'-DateTimeOriginal={date_str}',
+                                 '-overwrite_original', str(photo.path)],
+                                capture_output=True,
+                                timeout=10,
+                                check=False
+                            )
+                        except Exception as e:
+                            self.logger.warning(f"Failed to write EXIF for {photo.path}: {e}")
+                
+                self._update_progress(files_delta=1)
+                
+            except Exception as e:
+                self.logger.error(f"Failed to restore metadata for {photo.path}: {e}")
+        
+        self.logger.info(f"Restored metadata for {self.progress.files_processed} files")
+
+    def find_duplicates(self):
+        """
+        Detect duplicate files by hash and group them.
+        - Build a hash-to-PhotoFile mapping.
+        - For each group with >1 file, create a ProcessingIssue (category='duplicates').
+        - Use _select_best_photo to recommend which to keep.
+        - Update stats and self.issues.
+        """
+        self._update_progress("Finding duplicate files")
+        
+        # Build hash map
+        hash_map = defaultdict(list)
+        for photo in self.all_files:
+            if photo.hash:
+                hash_map[photo.hash].append(photo)
+        
+        # Find duplicates
+        duplicate_groups = {h: photos for h, photos in hash_map.items() if len(photos) > 1}
+        
+        self.logger.info(f"Found {len(duplicate_groups)} duplicate groups")
+        
+        for file_hash, photos in duplicate_groups.items():
+            if self.is_cancelled():
+                break
+                
+            # Select best photo to keep
+            best_photo = self._select_best_photo(photos)
+            
+            issue = ProcessingIssue(
+                category='duplicates',
+                files=photos,
+                recommended_keep=best_photo,
+                group_id=file_hash[:8],
+                description=f"Found {len(photos)} duplicate files"
+            )
+            self.issues.append(issue)
+            self.stats['duplicates_found'] += len(photos) - 1
+        
+        self.logger.info(f"Total duplicate files: {self.stats['duplicates_found']}")
+
+    def group_bursts(self):
+        """
+        Group burst photos (taken within a short time window) and flag for review.
+        - Sort files by date_taken.
+        - Group files within BURST_TIME_THRESHOLD seconds.
+        - For each group, create a ProcessingIssue (category='burst').
+        - Recommend best photo in each burst.
+        """
+        self._update_progress("Grouping burst photos")
+        
+        # Filter files with valid date_taken
+        dated_files = [f for f in self.all_files if f.date_taken and not f.is_corrupted]
+        dated_files.sort(key=lambda x: x.date_taken)
+        
+        # Group bursts
+        burst_groups = []
+        current_burst = []
+        
+        for i, photo in enumerate(dated_files):
+            if self.is_cancelled():
+                break
+                
+            if not current_burst:
+                current_burst.append(photo)
+            else:
+                time_diff = (photo.date_taken - current_burst[-1].date_taken).total_seconds()
+                
+                if time_diff <= self.BURST_TIME_THRESHOLD:
+                    current_burst.append(photo)
+                else:
+                    # Save burst if it has multiple photos
+                    if len(current_burst) > 1:
+                        burst_groups.append(current_burst)
+                    current_burst = [photo]
+        
+        # Don't forget last burst
+        if len(current_burst) > 1:
+            burst_groups.append(current_burst)
+        
+        self.logger.info(f"Found {len(burst_groups)} burst photo groups")
+        
+        # Create issues for each burst
+        for burst in burst_groups:
+            if self.is_cancelled():
+                break
+                
+            best_photo = self._select_best_photo(burst)
+            
+            issue = ProcessingIssue(
+                category='burst',
+                files=burst,
+                recommended_keep=best_photo,
+                description=f"Burst of {len(burst)} photos taken within {self.BURST_TIME_THRESHOLD}s"
+            )
+            self.issues.append(issue)
+            self.stats['bursts_found'] += 1
+        
+        self.logger.info(f"Total burst groups: {self.stats['bursts_found']}")
+
+    def organize_files(self):
+        """
+        Move/copy files to their final destinations and sort into review folders as needed.
+        - For each file, decide if it goes to the main library or a review folder (too small, blurry, duplicate, burst, etc.).
+        - Move/copy files, update stats, and log actions.
+        - Handle errors and update progress.
+        """
+        self._update_progress("Organizing files")
+        
+        # Build set of files that need review
+        review_files = set()
+        for issue in self.issues:
+            for photo in issue.files:
+                # Don't move the recommended keeper to review
+                if issue.recommended_keep and photo.path == issue.recommended_keep.path:
+                    continue
+                review_files.add(photo.path)
+        
+        self.progress.total_files = len(self.all_files)
+        self.progress.files_processed = 0
+        
+        for photo in self.all_files:
+            if self.is_cancelled():
+                break
+                
+            try:
+                # Determine destination
+                if photo.path in review_files:
+                    # Find which review folder
+                    dest_dir = None
+                    for issue in self.issues:
+                        if photo in issue.files:
+                            if issue.category == 'too_small':
+                                dest_dir = self.review_dirs['too_small']
+                            elif issue.category == 'blur_corrupt':
+                                dest_dir = self.review_dirs['blur_corrupt']
+                            elif issue.category == 'duplicates':
+                                dest_dir = self.review_dirs['duplicates']
+                            elif issue.category == 'burst':
+                                dest_dir = self.review_dirs['burst']
+                            break
+                    
+                    if dest_dir:
+                        dest_path = dest_dir / photo.path.name
+                        # Handle name conflicts
+                        counter = 1
+                        while dest_path.exists():
+                            stem = photo.path.stem
+                            suffix = photo.path.suffix
+                            dest_path = dest_dir / f"{stem}_{counter}{suffix}"
+                            counter += 1
+                        
+                        shutil.copy2(photo.path, dest_path)
+                        
+                        # Also copy JSON if present
+                        if photo.has_json and photo.json_path and photo.json_path.exists():
+                            json_dest = dest_path.parent / f"{dest_path.name}.json"
+                            shutil.copy2(photo.json_path, json_dest)
+                        
+                        self.logger.info(f"Moved to review: {photo.path.name} -> {dest_dir.name}")
+                else:
+                    # Move to main library organized by date
+                    if photo.date_taken:
+                        year_month = photo.date_taken.strftime('%Y-%m')
+                        dest_dir = self.photos_videos_dir / year_month
+                    else:
+                        dest_dir = self.photos_videos_dir / "Unknown Date"
+                    
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    dest_path = dest_dir / photo.path.name
+                    
+                    # Handle name conflicts
+                    counter = 1
+                    while dest_path.exists():
+                        stem = photo.path.stem
+                        suffix = photo.path.suffix
+                        dest_path = dest_dir / f"{stem}_{counter}{suffix}"
+                        counter += 1
+                    
+                    # Only move if not already in destination
+                    if photo.path.parent != dest_dir:
+                        shutil.move(str(photo.path), str(dest_path))
+                        
+                        # Also move JSON if present
+                        if photo.has_json and photo.json_path and photo.json_path.exists():
+                            json_dest = dest_path.parent / f"{dest_path.name}.json"
+                            shutil.move(str(photo.json_path), str(json_dest))
+                        
+                        self.stats['moved_to_library'] += 1
+                        self.logger.debug(f"Moved to library: {photo.path.name} -> {dest_dir}")
+                
+                self._update_progress(files_delta=1)
+                
+            except Exception as e:
+                self.logger.error(f"Failed to organize {photo.path}: {e}")
+        
+        self.logger.info(f"Organized {self.progress.files_processed} files")
+
+    def process(self):
+        """
+        Main entry point for the processing pipeline (for CLI and GUI).
+        - Calls run_full_pipeline and returns stats, issues.
+        - Handles exceptions and logs errors.
+        """
+        return self.run_full_pipeline()
+
+
+def main():
+    """CLI entry point for Google Photos Processor"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Google Photos Processor - Organize and deduplicate photos from Google Takeout"
+    )
+    parser.add_argument(
+        "--input", "-i",
+        required=True,
+        help="Base directory for processing (will create Photos & Videos, GoogleTakeout, etc. subdirectories)"
+    )
+    parser.add_argument(
+        "--threads", "-t",
+        type=int,
+        default=4,
+        help="Number of processing threads (default: 4)"
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose logging"
+    )
+    parser.add_argument(
+        "--exiftool",
+        help="Path to exiftool executable (auto-detected if not specified)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Setup logging
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Setup paths
+    base_dir = Path(args.input).resolve()
+    if not base_dir.exists():
+        print(f"ERROR: Input directory does not exist: {base_dir}")
+        return 1
+    
+    print(f"\n{'='*60}")
+    print(f"Google Photos Processor v2.1")
+    print(f"{'='*60}")
+    print(f"Base Directory: {base_dir}")
+    print(f"Threads: {args.threads}")
+    print(f"{'='*60}\n")
+    
+    # Create processor
+    processor = PhotoProcessorEnhanced(
+        base_path=str(base_dir),
+        exiftool_path=args.exiftool,
+        max_workers=args.threads
+    )
+    
+    # Setup progress callback
+    def print_progress(progress: ProcessingProgress):
+        percent = progress.percent_complete()
+        eta = progress.calculate_eta()
+        eta_str = f" ETA: {eta}" if eta else ""
+        
+        bar_length = 40
+        filled = int(bar_length * percent / 100)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        
+        status = f"{progress.current_step} [{progress.files_processed}/{progress.total_files}]"
+        print(f"\r{bar} {percent:.1f}% {status}{eta_str}", end='', flush=True)
+    
+    processor.progress_callback = print_progress
+    
+    try:
+        # Run processing
+        stats, issues = processor.process()
+        
+        print(f"\n\n{'='*60}")
+        print("Processing Complete!")
+        print(f"{'='*60}")
+        print(f"Files processed: {stats.get('files_processed', 0)}")
+        print(f"Duplicates found: {stats.get('duplicates', 0)}")
+        print(f"Issues found: {len(issues)}")
+        
+        if issues:
+            print(f"\nIssues:")
+            for issue in issues[:10]:  # Show first 10 issues
+                print(f"  - {issue}")
+            if len(issues) > 10:
+                print(f"  ... and {len(issues) - 10} more")
+        
+        print(f"\nOutput saved to: {base_dir}")
+        print(f"{'='*60}\n")
+        
+        return 0
+        
+    except KeyboardInterrupt:
+        print("\n\nProcessing cancelled by user")
+        return 130
+    except Exception as e:
+        print(f"\n\nERROR: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
