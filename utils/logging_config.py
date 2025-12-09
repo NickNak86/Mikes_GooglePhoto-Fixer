@@ -30,7 +30,8 @@ def configure_logging(log_path="logs/photo_fixer.log", level="INFO", max_bytes=5
     # Avoid adding duplicate handlers on repeated imports
     if not any(isinstance(h, RotatingFileHandler) and getattr(h, "baseFilename", None) == os.path.abspath(log_path) for h in logger.handlers if hasattr(h, "baseFilename")):
         logger.addHandler(fh)
-    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+    # Check for console StreamHandler specifically (not RotatingFileHandler which also inherits from StreamHandler)
+    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler) for h in logger.handlers):
         logger.addHandler(ch)
 
     logging.getLogger(__name__).info("Logging configured, file=%s", log_path)
