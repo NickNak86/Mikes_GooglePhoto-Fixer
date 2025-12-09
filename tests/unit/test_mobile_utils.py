@@ -3,6 +3,7 @@ Unit tests for mobile_utils.py
 """
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -20,13 +21,13 @@ class TestMobilePlatform:
 
     def test_is_android_detection(self):
         """Test Android platform detection."""
-        with patch('mobile_utils.platform', 'android'):
+        with patch('mobile_utils.ANDROID', True):
             platform = MobilePlatform()
             assert platform.is_android() == True
 
     def test_is_not_android(self):
         """Test non-Android platform detection."""
-        with patch('mobile_utils.platform', 'linux'):
+        with patch('mobile_utils.ANDROID', False):
             platform = MobilePlatform()
             assert platform.is_android() == False
 
@@ -40,16 +41,30 @@ class TestMobilePlatform:
 
     def test_get_storage_path_android(self):
         """Test storage path on Android."""
-        with patch('mobile_utils.ANDROID', True):
-            with patch('mobile_utils.autoclass') as mock_autoclass:
-                # Mock Android Environment class
-                mock_env = MagicMock()
-                mock_env.getExternalStorageDirectory().getPath.return_value = "/sdcard"
-                mock_autoclass.return_value = mock_env
+        # Mock jnius module and Android classes
+        mock_jnius = MagicMock()
+        mock_autoclass = MagicMock()
 
-                platform = MobilePlatform()
+        # Mock Android Environment class
+        mock_env = MagicMock()
+        mock_env.getExternalStorageDirectory().getPath.return_value = "/sdcard"
+        mock_autoclass.return_value = mock_env
+
+        mock_jnius.autoclass = mock_autoclass
+
+        with patch.dict('sys.modules', {'jnius': mock_jnius}):
+            with patch('mobile_utils.ANDROID', True):
+                # Re-import to get mocked autoclass
+                import importlib
+                import mobile_utils
+                importlib.reload(mobile_utils)
+
+                platform = mobile_utils.MobilePlatform()
                 path = platform.get_storage_path()
                 assert str(path) == "/sdcard/PhotoLibrary"
+
+                # Restore original module
+                importlib.reload(mobile_utils)
 
     def test_get_config_dir_desktop(self, temp_dir):
         """Test config directory on desktop."""
