@@ -39,7 +39,8 @@
 - Material Design Dark Mode interface
 - Real-time progress tracking with ETA
 - DupeGuru-style review interface
-- Comprehensive logging and error handling
+- **Comprehensive logging and error handling** - Detailed error messages, stack traces, and recovery suggestions
+- Activity Log with real-time updates and error reporting
 - Cross-platform (Windows, macOS, Linux)
 
 ### 📱 Mobile Application
@@ -358,6 +359,21 @@ pre-commit install
 
 ### Running Tests
 
+#### Automated Test Suite
+
+```bash
+# Generate test data (first time only)
+python generate_test_data.py ./test-data
+
+# Run comprehensive test suite
+python run_all_tests.py --test-data ./test-data --base-path ./test-output --clean
+
+# Check test report
+cat TEST-REPORT.md
+```
+
+#### Unit Tests
+
 ```bash
 # Run all tests
 pytest
@@ -368,6 +384,23 @@ pytest --cov=. --cov-report=html
 # Run specific test file
 pytest tests/unit/test_mobile_utils.py
 ```
+
+#### Manual Testing
+
+```bash
+# Start web interface
+python PhotoManagerWeb.py
+# Access: http://localhost:5000
+# Logs: photo_manager_web.log
+
+# Test with generated data
+# 1. Set base path in settings
+# 2. Copy test-data/* to base_path/GoogleTakeout/
+# 3. Click "Organize My Photos"
+# 4. Check Activity Log for detailed progress
+```
+
+📖 **Full testing guide**: See [TESTING-GUIDE.md](TESTING-GUIDE.md) for comprehensive testing documentation
 
 ### Code Quality
 

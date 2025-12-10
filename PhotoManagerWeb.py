@@ -16,17 +16,32 @@ import socket
 import shutil
 import threading
 import webbrowser
+import logging
+import traceback
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from flask import Flask, render_template_string, jsonify, request, send_from_directory
 
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('photo_manager_web.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Try to import PhotoProcessor, but allow running without it for UI testing
 try:
     from PhotoProcessor import PhotoProcessor, ProcessingIssue
     HAS_PROCESSOR = True
+    logger.info("PhotoProcessor imported successfully")
 except ImportError:
     HAS_PROCESSOR = False
+    logger.warning("PhotoProcessor not found. Running in UI-only mode.")
     print("Warning: PhotoProcessor not found. Running in UI-only mode.")
 
 app = Flask(__name__)
@@ -51,18 +66,39 @@ processing_status = {
 
 
 def load_settings():
+    """Load settings from config file with error handling"""
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            pass
+                settings = json.load(f)
+                logger.info(f"Loaded settings from {CONFIG_FILE}")
+                return settings
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in config file: {e}")
+            add_log(f"ERROR: Invalid config file format: {e}")
+        except Exception as e:
+            logger.error(f"Error loading settings: {e}")
+            add_log(f"ERROR: Could not load settings: {e}")
+    else:
+        logger.info("Config file not found, using defaults")
     return DEFAULT_SETTINGS.copy()
 
 
 def save_settings(settings):
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(settings, f, indent=2)
+    """Save settings to config file with error handling"""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(settings, f, indent=2)
+        logger.info(f"Saved settings to {CONFIG_FILE}")
+        return True
+    except PermissionError as e:
+        logger.error(f"Permission denied saving settings: {e}")
+        add_log(f"ERROR: Permission denied: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Error saving settings: {e}")
+        add_log(f"ERROR: Could not save settings: {e}")
+        return False
 
 
 def get_local_ip():
@@ -836,14 +872,42 @@ def get_settings():
 
 @app.route('/api/settings', methods=['POST'])
 def update_settings():
-    data = request.json
-    settings = load_settings()
-    if 'base_path' in data:
-        settings['base_path'] = data['base_path']
-    if 'exiftool_path' in data:
-        settings['exiftool_path'] = data['exiftool_path']
-    save_settings(settings)
-    return jsonify({"success": True})
+    """Update settings with validation and error handling"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        settings = load_settings()
+        
+        # Validate base_path if provided
+        if 'base_path' in data:
+            base_path = data['base_path']
+            if not base_path:
+                return jsonify({"success": False, "error": "Base path cannot be empty"}), 400
+            
+            base_path_obj = Path(base_path)
+            if not base_path_obj.exists():
+                return jsonify({"success": False, "error": f"Directory does not exist: {base_path}"}), 400
+            
+            if not base_path_obj.is_dir():
+                return jsonify({"success": False, "error": f"Path is not a directory: {base_path}"}), 400
+            
+            settings['base_path'] = base_path
+            logger.info(f"Updated base_path to: {base_path}")
+        
+        if 'exiftool_path' in data:
+            settings['exiftool_path'] = data['exiftool_path']
+            logger.info(f"Updated exiftool_path to: {data['exiftool_path']}")
+        
+        if save_settings(settings):
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Failed to save settings"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating settings: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/status')
@@ -853,19 +917,46 @@ def get_status():
 
 @app.route('/api/process', methods=['POST'])
 def start_processing():
+    """Start photo processing with validation"""
     global processing_status
 
-    if processing_status["is_processing"]:
-        return jsonify({"success": False, "message": "Already processing"})
+    try:
+        if processing_status["is_processing"]:
+            logger.warning("Processing already in progress")
+            return jsonify({"success": False, "message": "Already processing"}), 409
+        
+        # Validate settings before starting
+        settings = load_settings()
+        base_path = settings.get('base_path')
+        
+        if not base_path:
+            error_msg = "No base path configured. Please set base path in settings first."
+            logger.error(error_msg)
+            add_log(f"✗ ERROR: {error_msg}")
+            return jsonify({"success": False, "error": error_msg}), 400
+        
+        base_path_obj = Path(base_path)
+        if not base_path_obj.exists():
+            error_msg = f"Base path does not exist: {base_path}"
+            logger.error(error_msg)
+            add_log(f"✗ ERROR: {error_msg}")
+            return jsonify({"success": False, "error": error_msg}), 400
 
-    if not HAS_PROCESSOR:
-        # Demo mode - simulate processing
-        threading.Thread(target=demo_processing).start()
-        return jsonify({"success": True, "message": "Started (demo mode)"})
+        if not HAS_PROCESSOR:
+            # Demo mode - simulate processing
+            logger.info("Starting demo processing mode")
+            threading.Thread(target=demo_processing, daemon=True).start()
+            return jsonify({"success": True, "message": "Started (demo mode)"})
 
-    # Start real processing in background
-    threading.Thread(target=run_processing).start()
-    return jsonify({"success": True})
+        # Start real processing in background
+        logger.info("Starting real photo processing")
+        threading.Thread(target=run_processing, daemon=True).start()
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        error_msg = f"Failed to start processing: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return jsonify({"success": False, "error": error_msg}), 500
 
 
 def demo_processing():
@@ -897,62 +988,142 @@ def demo_processing():
 
 
 def run_processing():
-    """Run actual photo processing"""
+    """Run actual photo processing with comprehensive error handling"""
     global processing_status
 
     processing_status["is_processing"] = True
     processing_status["progress"] = 0
     processing_status["log"] = []
     add_log("Starting photo processing...")
+    logger.info("Starting photo processing workflow")
 
     try:
+        # Load and validate settings
         settings = load_settings()
+        base_path = settings.get('base_path')
+        
+        if not base_path:
+            raise ValueError("No base path configured. Please set base path in settings.")
+        
+        base_path_obj = Path(base_path)
+        if not base_path_obj.exists():
+            raise FileNotFoundError(f"Base path does not exist: {base_path}")
+        
+        if not base_path_obj.is_dir():
+            raise NotADirectoryError(f"Base path is not a directory: {base_path}")
+        
+        logger.info(f"Using base path: {base_path}")
+        add_log(f"Base path: {base_path}")
+        
+        # Initialize processor
+        add_log("Initializing photo processor...")
         processor = PhotoProcessor(
-            base_path=settings['base_path'],
+            base_path=base_path,
             exiftool_path=settings.get('exiftool_path')
         )
+        logger.info("PhotoProcessor initialized successfully")
 
         def update_progress(p):
-            processing_status["progress"] = p
+            processing_status["progress"] = min(100, max(0, p))
+            logger.debug(f"Progress: {p}%")
 
         def update_status(s):
             processing_status["status"] = s
             add_log(s)
+            logger.info(f"Status: {s}")
 
         processor.progress_callback = update_progress
         processor.status_callback = update_status
 
+        # Run pipeline
+        add_log("Running full processing pipeline...")
         stats, issues = processor.run_full_pipeline()
 
+        # Success!
         processing_status["progress"] = 100
         processing_status["status"] = "Complete!"
-        add_log("Processing complete!")
-        add_log(processor.get_summary())
+        add_log("✓ Processing complete!")
+        
+        summary = processor.get_summary()
+        add_log(summary)
+        logger.info(f"Processing completed successfully: {summary}")
 
+    except FileNotFoundError as e:
+        error_msg = f"Directory not found: {str(e)}"
+        processing_status["status"] = f"ERROR: {error_msg}"
+        add_log(f"✗ ERROR: {error_msg}")
+        logger.error(error_msg, exc_info=True)
+        
+    except PermissionError as e:
+        error_msg = f"Permission denied: {str(e)}"
+        processing_status["status"] = f"ERROR: {error_msg}"
+        add_log(f"✗ ERROR: {error_msg}")
+        add_log("Tip: Make sure you have write permissions to the directory")
+        logger.error(error_msg, exc_info=True)
+        
+    except ValueError as e:
+        error_msg = f"Invalid configuration: {str(e)}"
+        processing_status["status"] = f"ERROR: {error_msg}"
+        add_log(f"✗ ERROR: {error_msg}")
+        logger.error(error_msg, exc_info=True)
+        
     except Exception as e:
-        processing_status["status"] = f"Error: {str(e)}"
-        add_log(f"Error: {str(e)}")
+        error_msg = f"Unexpected error: {str(e)}"
+        processing_status["status"] = f"ERROR: {error_msg}"
+        add_log(f"✗ ERROR: {error_msg}")
+        add_log(f"Error type: {type(e).__name__}")
+        
+        # Log full traceback
+        tb_str = traceback.format_exc()
+        logger.error(f"Processing failed with exception:\n{tb_str}")
+        
+        # Add abbreviated traceback to user log
+        tb_lines = tb_str.split('\n')
+        if len(tb_lines) > 5:
+            add_log("Stack trace (last 5 lines):")
+            for line in tb_lines[-5:]:
+                if line.strip():
+                    add_log(f"  {line}")
+        
+        add_log("Full error details saved to photo_manager_web.log")
 
-    processing_status["is_processing"] = False
+    finally:
+        processing_status["is_processing"] = False
+        logger.info("Processing workflow ended")
 
 
 @app.route('/api/open-library', methods=['POST'])
 def open_library():
-    settings = load_settings()
-    library_path = Path(settings['base_path']) / "Photos & Videos"
-
-    if not library_path.exists():
-        return jsonify({"success": False, "message": "Library folder doesn't exist yet. Run processing first!"})
-
+    """Open library folder in file explorer with error handling"""
     try:
+        settings = load_settings()
+        base_path = settings.get('base_path')
+        
+        if not base_path:
+            return jsonify({"success": False, "message": "No base path configured"}), 400
+        
+        library_path = Path(base_path) / "Photos & Videos"
+
+        if not library_path.exists():
+            logger.warning(f"Library folder does not exist: {library_path}")
+            return jsonify({"success": False, "message": "Library folder doesn't exist yet. Run processing first!"}), 404
+
         if os.name == 'nt':  # Windows
             os.startfile(str(library_path))
+            logger.info(f"Opened library folder: {library_path}")
         else:  # macOS/Linux
             import subprocess
             subprocess.Popen(['xdg-open', str(library_path)])
+            logger.info(f"Opened library folder: {library_path}")
+        
         return jsonify({"success": True})
+        
+    except FileNotFoundError as e:
+        logger.error(f"Library folder not found: {e}")
+        return jsonify({"success": False, "message": f"Folder not found: {str(e)}"}), 404
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        logger.error(f"Error opening library folder: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
 
 @app.route('/review')
@@ -963,47 +1134,65 @@ def review():
 
 @app.route('/api/review/groups')
 def get_review_groups():
-    """Get all photo groups for review"""
-    settings = load_settings()
-    review_dir = Path(settings['base_path']) / "Pics Waiting for Approval"
+    """Get all photo groups for review with error handling"""
+    try:
+        settings = load_settings()
+        base_path = settings.get('base_path')
+        
+        if not base_path:
+            logger.warning("No base path configured when accessing review groups")
+            return jsonify({"groups": [], "message": "No base path configured", "error": "config"}), 400
+        
+        review_dir = Path(base_path) / "Pics Waiting for Approval"
 
-    if not review_dir.exists():
-        return jsonify({"groups": [], "message": "No photos to review"})
+        if not review_dir.exists():
+            logger.info(f"Review directory does not exist: {review_dir}")
+            return jsonify({"groups": [], "message": "No photos to review"})
 
-    groups = []
-    # Match the folder names created by PhotoProcessor
-    category_folders = [
-        ('NEEDS ATTENTION - Duplicates', 'Duplicates'),
-        ('NEEDS ATTENTION - Burst Photos', 'Burst Photos'),
-        ('NEEDS ATTENTION - Blurry or Corrupt', 'Quality Issues'),
-        ('NEEDS ATTENTION - Too Small', 'Too Small'),
-        ('Duplicates', 'Duplicates'),
-        ('Burst Photos', 'Burst Photos'),
-        ('Quality Issues', 'Quality Issues'),
-    ]
+        groups = []
+        # Match the folder names created by PhotoProcessor
+        category_folders = [
+            ('NEEDS ATTENTION - Duplicates', 'Duplicates'),
+            ('NEEDS ATTENTION - Burst Photos', 'Burst Photos'),
+            ('NEEDS ATTENTION - Blurry or Corrupt', 'Quality Issues'),
+            ('NEEDS ATTENTION - Too Small', 'Too Small'),
+            ('Duplicates', 'Duplicates'),
+            ('Burst Photos', 'Burst Photos'),
+            ('Quality Issues', 'Quality Issues'),
+        ]
 
-    for folder_name, category in category_folders:
-        cat_dir = review_dir / folder_name
-        if cat_dir.exists():
-            for group_folder in cat_dir.iterdir():
-                if group_folder.is_dir():
-                    photos = []
-                    for ext in ['.jpg', '.jpeg', '.png', '.heic', '.gif', '.webp']:
-                        photos.extend([p.name for p in group_folder.glob(f'*{ext}')])
-                        photos.extend([p.name for p in group_folder.glob(f'*{ext.upper()}')])
+        for folder_name, category in category_folders:
+            cat_dir = review_dir / folder_name
+            if cat_dir.exists():
+                try:
+                    for group_folder in cat_dir.iterdir():
+                        if group_folder.is_dir():
+                            photos = []
+                            for ext in ['.jpg', '.jpeg', '.png', '.heic', '.gif', '.webp']:
+                                photos.extend([p.name for p in group_folder.glob(f'*{ext}')])
+                                photos.extend([p.name for p in group_folder.glob(f'*{ext.upper()}')])
 
-                    if photos:
-                        best = next((p for p in photos if p.startswith('BEST_')), photos[0] if photos else None)
-                        groups.append({
-                            "id": str(group_folder),
-                            "name": group_folder.name,
-                            "category": category,
-                            "photos": photos,
-                            "best": best,
-                            "count": len(photos)
-                        })
+                            if photos:
+                                best = next((p for p in photos if p.startswith('BEST_')), photos[0] if photos else None)
+                                groups.append({
+                                    "id": str(group_folder),
+                                    "name": group_folder.name,
+                                    "category": category,
+                                    "photos": photos,
+                                    "best": best,
+                                    "count": len(photos)
+                                })
+                except PermissionError as e:
+                    logger.error(f"Permission denied accessing {cat_dir}: {e}")
+                except Exception as e:
+                    logger.error(f"Error scanning {cat_dir}: {e}", exc_info=True)
 
-    return jsonify({"groups": groups, "total": len(groups)})
+        logger.info(f"Found {len(groups)} review groups")
+        return jsonify({"groups": groups, "total": len(groups)})
+        
+    except Exception as e:
+        logger.error(f"Error getting review groups: {e}", exc_info=True)
+        return jsonify({"groups": [], "message": f"Error: {str(e)}", "error": "server"}), 500
 
 
 @app.route('/api/review/photo/<path:photo_path>')
@@ -1014,31 +1203,64 @@ def get_review_photo(photo_path):
 
 @app.route('/api/review/action', methods=['POST'])
 def review_action():
-    """Handle review actions (keep, delete, keep all)"""
-    data = request.json
-    action = data.get('action')
-    group_path = data.get('group_path')
-    photo = data.get('photo')
-
-    settings = load_settings()
-    library_path = Path(settings['base_path']) / "Photos & Videos"
-
+    """Handle review actions (keep, delete, keep all) with comprehensive error handling"""
     try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "message": "No data provided"}), 400
+        
+        action = data.get('action')
+        group_path = data.get('group_path')
+        photo = data.get('photo')
+
+        if not action:
+            return jsonify({"success": False, "message": "No action specified"}), 400
+        
+        if not group_path:
+            return jsonify({"success": False, "message": "No group path specified"}), 400
+
+        settings = load_settings()
+        base_path = settings.get('base_path')
+        
+        if not base_path:
+            return jsonify({"success": False, "message": "No base path configured"}), 400
+        
+        library_path = Path(base_path) / "Photos & Videos"
         group_folder = Path(group_path)
+        
+        if not group_folder.exists():
+            logger.warning(f"Group folder does not exist: {group_folder}")
+            return jsonify({"success": False, "message": "Group folder no longer exists"}), 404
 
         if action == 'keep_one':
+            if not photo:
+                return jsonify({"success": False, "message": "No photo specified"}), 400
+            
             # Keep selected photo, move to library
             photo_path = group_folder / photo
-            if photo_path.exists():
-                # Organize by date
-                from datetime import datetime
-                mtime = datetime.fromtimestamp(photo_path.stat().st_mtime)
-                dest_folder = library_path / str(mtime.year) / f"{mtime.month:02d}"
-                dest_folder.mkdir(parents=True, exist_ok=True)
+            if not photo_path.exists():
+                logger.warning(f"Photo does not exist: {photo_path}")
+                return jsonify({"success": False, "message": f"Photo not found: {photo}"}), 404
+            
+            # Organize by date
+            mtime = datetime.fromtimestamp(photo_path.stat().st_mtime)
+            dest_folder = library_path / str(mtime.year) / f"{mtime.month:02d}"
+            dest_folder.mkdir(parents=True, exist_ok=True)
 
-                # Remove BEST_ prefix if present
-                new_name = photo.replace('BEST_', '')
-                shutil.move(str(photo_path), str(dest_folder / new_name))
+            # Remove BEST_ prefix if present
+            new_name = photo.replace('BEST_', '')
+            dest_path = dest_folder / new_name
+            
+            # Handle name conflicts
+            counter = 1
+            while dest_path.exists():
+                stem = dest_path.stem
+                ext = dest_path.suffix
+                dest_path = dest_folder / f"{stem}_{counter}{ext}"
+                counter += 1
+            
+            shutil.move(str(photo_path), str(dest_path))
+            logger.info(f"Kept photo: {photo} -> {dest_path}")
 
             # Delete the rest
             shutil.rmtree(str(group_folder), ignore_errors=True)
@@ -1046,25 +1268,50 @@ def review_action():
 
         elif action == 'keep_all':
             # Move all photos to library
+            moved_count = 0
             for photo_file in group_folder.iterdir():
                 if photo_file.is_file() and photo_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.heic', '.gif', '.webp']:
-                    mtime = datetime.fromtimestamp(photo_file.stat().st_mtime)
-                    dest_folder = library_path / str(mtime.year) / f"{mtime.month:02d}"
-                    dest_folder.mkdir(parents=True, exist_ok=True)
-                    new_name = photo_file.name.replace('BEST_', '')
-                    shutil.move(str(photo_file), str(dest_folder / new_name))
+                    try:
+                        mtime = datetime.fromtimestamp(photo_file.stat().st_mtime)
+                        dest_folder = library_path / str(mtime.year) / f"{mtime.month:02d}"
+                        dest_folder.mkdir(parents=True, exist_ok=True)
+                        new_name = photo_file.name.replace('BEST_', '')
+                        dest_path = dest_folder / new_name
+                        
+                        # Handle name conflicts
+                        counter = 1
+                        while dest_path.exists():
+                            stem = dest_path.stem
+                            ext = dest_path.suffix
+                            dest_path = dest_folder / f"{stem}_{counter}{ext}"
+                            counter += 1
+                        
+                        shutil.move(str(photo_file), str(dest_path))
+                        moved_count += 1
+                    except Exception as e:
+                        logger.error(f"Error moving {photo_file}: {e}")
 
             shutil.rmtree(str(group_folder), ignore_errors=True)
-            return jsonify({"success": True, "message": "Kept all photos"})
+            logger.info(f"Kept all photos from {group_folder.name}: {moved_count} files")
+            return jsonify({"success": True, "message": f"Kept all {moved_count} photos"})
 
         elif action == 'delete_all':
             shutil.rmtree(str(group_folder), ignore_errors=True)
+            logger.info(f"Deleted group: {group_folder.name}")
             return jsonify({"success": True, "message": "Deleted group"})
 
-        return jsonify({"success": False, "message": "Unknown action"})
+        logger.warning(f"Unknown action: {action}")
+        return jsonify({"success": False, "message": f"Unknown action: {action}"}), 400
 
+    except PermissionError as e:
+        logger.error(f"Permission denied during review action: {e}")
+        return jsonify({"success": False, "message": f"Permission denied: {str(e)}"}), 403
+    except FileNotFoundError as e:
+        logger.error(f"File not found during review action: {e}")
+        return jsonify({"success": False, "message": f"File not found: {str(e)}"}), 404
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        logger.error(f"Error in review action: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
 
 REVIEW_TEMPLATE = '''
@@ -1310,6 +1557,24 @@ REVIEW_TEMPLATE = '''
 
 
 # =============================================================================
+# Error Handlers
+# =============================================================================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    logger.warning(f"404 error: {request.url}")
+    return jsonify({"error": "Not found", "message": str(error)}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"500 error: {error}", exc_info=True)
+    return jsonify({"error": "Internal server error", "message": "An unexpected error occurred. Check logs for details."}), 500
+
+
+# =============================================================================
 # Main Entry Point
 # =============================================================================
 
@@ -1330,14 +1595,26 @@ def main():
     print(f"    http://{local_ip}:{port}")
     print()
     print("  Press Ctrl+C to stop the server")
+    print()
+    print("  Logs are saved to: photo_manager_web.log")
     print("=" * 60)
+    
+    logger.info("Starting Google Photos Manager Web Edition")
 
     # Open browser on Windows
     if os.name == 'nt':
         webbrowser.open(f'http://localhost:{port}')
 
     # Run Flask
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
+        print("\n\nServer stopped.")
+    except Exception as e:
+        logger.error(f"Server error: {e}", exc_info=True)
+        print(f"\n\nERROR: {e}")
+        print("Check photo_manager_web.log for details")
 
 
 if __name__ == "__main__":

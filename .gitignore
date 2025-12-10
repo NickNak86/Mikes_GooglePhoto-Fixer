@@ -49,6 +49,11 @@ logs/
 htmlcov/
 .tox/
 .nox/
+test-data/
+test-output/
+TEST-REPORT.md
+test_runner.log
+photo_manager_web.log
 
 # Build artifacts
 *.apk
