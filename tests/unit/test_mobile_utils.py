@@ -22,13 +22,13 @@ class TestMobilePlatform:
         """Test Android platform detection."""
         with patch('mobile_utils.ANDROID', True):
             platform = MobilePlatform()
-            assert platform.is_android() == True
+            assert platform.is_android()
 
     def test_is_not_android(self):
         """Test non-Android platform detection."""
         with patch('mobile_utils.ANDROID', False):
             platform = MobilePlatform()
-            assert platform.is_android() == False
+            assert not platform.is_android()
 
     def test_get_storage_path_desktop(self, temp_dir):
         """Test storage path on desktop platforms."""
