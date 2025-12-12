@@ -20,13 +20,13 @@ class TestMobilePlatform:
 
     def test_is_android_detection(self):
         """Test Android platform detection."""
-        with patch('mobile_utils.platform', 'android'):
+        with patch('mobile_utils.ANDROID', True):
             platform = MobilePlatform()
             assert platform.is_android() == True
 
     def test_is_not_android(self):
         """Test non-Android platform detection."""
-        with patch('mobile_utils.platform', 'linux'):
+        with patch('mobile_utils.ANDROID', False):
             platform = MobilePlatform()
             assert platform.is_android() == False
 
@@ -41,7 +41,7 @@ class TestMobilePlatform:
     def test_get_storage_path_android(self):
         """Test storage path on Android."""
         with patch('mobile_utils.ANDROID', True):
-            with patch('mobile_utils.autoclass') as mock_autoclass:
+            with patch('jnius.autoclass') as mock_autoclass:
                 # Mock Android Environment class
                 mock_env = MagicMock()
                 mock_env.getExternalStorageDirectory().getPath.return_value = "/sdcard"

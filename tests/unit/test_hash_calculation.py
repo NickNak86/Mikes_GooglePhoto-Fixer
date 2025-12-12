@@ -100,11 +100,10 @@ class TestHashCalculation:
         expected = hashlib.sha256(binary_content).hexdigest()
         assert hash_value == expected
 
+    @pytest.mark.skipif(not pytest.config.pluginmanager.hasplugin('benchmark'), 
+                        reason="pytest-benchmark not installed")
     def test_hash_performance(self, temp_dir, benchmark):
         """Benchmark hash calculation performance."""
-        if not hasattr(pytest, 'benchmark'):
-            pytest.skip("pytest-benchmark not installed")
-
         # Create test file
         test_file = temp_dir / "perf_test.bin"
         test_file.write_bytes(b'x' * (1024 * 1024))  # 1MB
