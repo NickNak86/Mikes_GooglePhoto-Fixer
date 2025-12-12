@@ -279,7 +279,7 @@ class TestQualityAssessmentCombined:
 class TestQualityPerformance:
     """Performance tests for quality assessment."""
 
-    @pytest.mark.skipif(not pytest.config.pluginmanager.hasplugin('benchmark'), 
+    @pytest.mark.skipif('benchmark' not in dir(pytest), 
                         reason="pytest-benchmark not installed")
     def test_blur_detection_performance(self, temp_dir, benchmark):
         """Benchmark blur detection performance."""
@@ -292,16 +292,16 @@ class TestQualityPerformance:
         result = benchmark(calculate_blur_score, path)
         assert result is not None
 
-    @pytest.mark.skipif(not pytest.config.pluginmanager.hasplugin('benchmark'), 
+    @pytest.mark.skipif('benchmark' not in dir(pytest), 
                         reason="pytest-benchmark not installed")
-    def test_size_check_performance(self, sample_image, benchmark):
+    def test_size_check_performance(self, temp_dir, benchmark):
         """Benchmark size checking performance."""
         result = benchmark(check_image_size, sample_image)
         assert result is not None
 
-    @pytest.mark.skipif(not pytest.config.pluginmanager.hasplugin('benchmark'), 
+    @pytest.mark.skipif('benchmark' not in dir(pytest), 
                         reason="pytest-benchmark not installed")
-    def test_combined_assessment_performance(self, sample_image, benchmark):
+    def test_combined_assessment_performance(self, temp_dir, benchmark):
         """Benchmark combined quality assessment."""
         def combined_assessment(img_path):
             blur_result = calculate_blur_score(img_path)
